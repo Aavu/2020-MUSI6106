@@ -60,14 +60,15 @@ int main(int argc, char* argv[])
         return 1;
     }
     
+    int numChannels = stFileSpec.iNumChannels;
     //////////////////////////////////////////////////////////////////////////////
     // open the output text file
     hOutputFile.open(sOutputFilePath, std::fstream::out | std::fstream::app);
     hOutputFile.precision(16);
     //////////////////////////////////////////////////////////////////////////////
     // allocate memory
-    ppfAudioData = new float*[2];
-    for (int i=0; i < stFileSpec.iNumChannels; i++) {
+    ppfAudioData = new float*[numChannels];
+    for (int i=0; i < numChannels; i++) {
         ppfAudioData[i] = new float[kBlockSize];
     }
     //////////////////////////////////////////////////////////////////////////////
@@ -92,7 +93,7 @@ int main(int argc, char* argv[])
     // clean-up (close files and free memory)
     hOutputFile.close();
     phAudioFile->closeFile();
-    for (int i=0; i < stFileSpec.iNumChannels; i++) delete[] ppfAudioData[i];
+    for (int i=0; i < numChannels; i++) delete[] ppfAudioData[i];
     delete[] ppfAudioData;
     
     // all done
