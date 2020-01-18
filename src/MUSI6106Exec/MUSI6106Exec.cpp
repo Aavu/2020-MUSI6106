@@ -6,6 +6,7 @@
 #include "MUSI6106Config.h"
 
 #include "AudioFileIf.h"
+#include "CombFilterIf.h"
 
 using std::cout;
 using std::endl;
