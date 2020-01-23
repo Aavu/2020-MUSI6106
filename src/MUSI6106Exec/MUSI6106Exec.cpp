@@ -2,7 +2,6 @@
 #include <ctime>
 #include <cmath>
 #include <iostream>
-#include <vector>
 
 #include "MUSI6106Config.h"
 
@@ -24,7 +23,7 @@ int main(int argc, char *argv[]) {
     std::string sInputFilePath,  //!< file paths
             sOutputFilePath;
 
-    static int kBlockSize;
+    static int kBlockSize = 1024;
 
     clock_t time = 0;
 
@@ -41,7 +40,7 @@ int main(int argc, char *argv[]) {
 
     CCombFilterIf::CombFilterType_t filterType = CCombFilterIf::kCombFIR;
 
-    bool testMode;
+    bool testMode = false;
 
     //////////////////////////////////////////////////////////////////////////////
     // parse command line arguments
@@ -57,28 +56,34 @@ int main(int argc, char *argv[]) {
     std::string progName = argv[0];
     testMode = progName.substr(0, 16) == "MUSI6106ExecTEST";
 
-    auto testNum = progName.substr(12, 6);
-    if (testNum == "TEST_4" || testNum == "TEST_2") {
-        if (strcmp(argv[3], "IIR") == 0)
-            filterType = CCombFilterIf::kCombIIR;
+    if (argc == 6 && !testMode) {
+        filterType = (strcmp(argv[3], "FIR") == 0) ? CCombFilterIf::kCombFIR : CCombFilterIf::kCombIIR;
+        sInputFilePath = argv[1];
+        sOutputFilePath = argv[2];
+        gain = atof(argv[4]);
+        delay = atof(argv[5]);
     }
 
-    if (testNum == "TEST_3")
-        kBlockSize = (int) strtol(argv[4], nullptr, 10);
-    else
-        kBlockSize = 1024;
-
-    if (testNum == "TEST_1") {
-        gain = -1;
-        delay = 0.01;
-    }
-    else if (testNum == "TEST_5") {
-        gain = 0;
-        delay = 0;
-    }
-    else {
-        gain = 0.99;
-        delay = 0.01;
+    if (testMode) {
+        auto testNum = progName.substr(12, 6);
+        if (testNum == "TEST_4" || testNum == "TEST_2") {
+            if (strcmp(argv[3], "IIR") == 0)
+                filterType = CCombFilterIf::kCombIIR;
+        }
+        if (testNum == "TEST_3")
+            kBlockSize = (int) strtol(argv[4], nullptr, 10);
+        else
+            kBlockSize = 1024;
+        if (testNum == "TEST_1") {
+            gain = -1;
+            delay = 0.01;
+        } else if (testNum == "TEST_5") {
+            gain = 0;
+            delay = 0;
+        } else {
+            gain = 0.99;
+            delay = 0.01;
+        }
     }
 
     if(!testMode)
