@@ -8,13 +8,14 @@
 #include "Util.h"
 
 #include "CombFilterIf.h"
+#include "CombFilter.h"
 
 static const char*  kCMyProjectBuildDate             = __DATE__;
 
 
 CCombFilterIf::CCombFilterIf () :
+    m_pCCombFilter((CCombFilterBase*)(this)),
     m_bIsInitialized(false),
-    m_pCCombFilter(0),
     m_fSampleRate(0)
 {
     // this never hurts
@@ -27,7 +28,7 @@ CCombFilterIf::~CCombFilterIf ()
     this->reset ();
 }
 
-const int  CCombFilterIf::getVersion (const Version_t eVersionIdx)
+int  CCombFilterIf::getVersion (const Version_t eVersionIdx)
 {
     int iVersion = 0;
 
@@ -49,42 +50,61 @@ const int  CCombFilterIf::getVersion (const Version_t eVersionIdx)
 
     return iVersion;
 }
+
 const char*  CCombFilterIf::getBuildDate ()
 {
     return kCMyProjectBuildDate;
 }
 
-Error_t CCombFilterIf::create( CCombFilterIf*& pCCombFilter)
+Error_t CCombFilterIf::create (CCombFilterIf*& pCCombFilter)
 {
+    pCCombFilter = new CCombFilterBase();
+    if (!pCCombFilter)
+        return kMemError;
     return kNoError;
 }
 
 Error_t CCombFilterIf::destroy (CCombFilterIf*& pCCombFilter)
 {
+    delete pCCombFilter;
+    pCCombFilter = nullptr;
+
     return kNoError;
 }
 
-Error_t CCombFilterIf::init( CombFilterType_t eFilterType, float fMaxDelayLengthInS, float fSampleRateInHz, int iNumChannels )
+Error_t CCombFilterIf::init (CombFilterType_t eFilterType, float fMaxDelayLengthInS, float fSampleRateInHz, int iNumChannels)
 {
-    return kNoError;
+    m_bIsInitialized = true;
+    m_fSampleRate = fSampleRateInHz;
+    return m_pCCombFilter->init(eFilterType, fSampleRateInHz, iNumChannels, fMaxDelayLengthInS);
 }
 
 Error_t CCombFilterIf::reset ()
 {
-    return kNoError;
+    Error_t eErr = init(kCombFIR, 1, 44100, 2);
+    if (eErr != kNoError)
+        return eErr;
+
+    return eErr;
 }
 
-Error_t CCombFilterIf::process( float **ppfInputBuffer, float **ppfOutputBuffer, int iNumberOfFrames )
+Error_t CCombFilterIf::process (float **ppfInputBuffer, float **ppfOutputBuffer, int iNumberOfFrames)
 {
-    return kNoError;
+    if (!ppfInputBuffer || !ppfInputBuffer[0] || !ppfOutputBuffer || !ppfOutputBuffer[0] || iNumberOfFrames < 0)
+        return kFunctionInvalidArgsError;
+
+    if (!m_bIsInitialized)
+        return kNotInitializedError;
+
+    return m_pCCombFilter->processIntern(ppfInputBuffer, ppfOutputBuffer, iNumberOfFrames);
 }
 
-Error_t CCombFilterIf::setParam( FilterParam_t eParam, float fParamValue )
+Error_t CCombFilterIf::setParam (FilterParam_t eParam, float fParamValue)
 {
-    return kNoError;
+    return m_pCCombFilter->setParamIntern(eParam, fParamValue);
 }
 
-float CCombFilterIf::getParam( FilterParam_t eParam ) const
+float CCombFilterIf::getParam (FilterParam_t eParam) const
 {
-    return 0;
+    return m_pCCombFilter->getParamIntern(eParam);
 }

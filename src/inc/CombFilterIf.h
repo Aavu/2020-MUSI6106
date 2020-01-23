@@ -40,7 +40,7 @@ public:
     \param eVersionIdx specifies what version to return (kMajor, kMinor,...)
     \return const int
     */
-    static const int  getVersion (const Version_t eVersionIdx);
+    static int  getVersion (Version_t eVersionIdx);
     
     /*! returns the date of the build
     \return const char*
@@ -84,7 +84,7 @@ public:
     \param eParam
     \return float
     */
-    float   getParam (FilterParam_t eParam) const;
+    float getParam (FilterParam_t eParam) const;
     
     /*! processes one block of audio
     \param ppfInputBuffer input buffer [numChannels][iNumberOfFrames]
