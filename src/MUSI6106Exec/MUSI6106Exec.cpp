@@ -168,7 +168,7 @@ std::string getString(bool s) {
 
 void TEST_1() {
     std::string progName = "MUSI6106ExecTEST_1";
-    std::string in = "sine.wav";
+    std::string in = "tests/sine.wav";
     std::string out = progName + ".wav";
     std::string ft = "FIR";
 
@@ -217,7 +217,7 @@ void TEST_1() {
 
 void TEST_2() {
     std::string progName = "MUSI6106ExecTEST_2";
-    std::string in = "sine.wav";
+    std::string in = "tests/sine.wav";
     std::string out = progName + ".wav";
     std::string ft = "IIR";
 
@@ -289,7 +289,7 @@ void TEST_2() {
 
 void TEST_3() {
     string progName = "MUSI6106ExecTEST_3";
-    string in = "noise.wav";
+    string in = "tests/noise.wav";
     string ft[2] = {"FIR", "IIR"};
     string outName[2];
     CAudioFileIf *phAudioFile = nullptr;
@@ -364,7 +364,7 @@ void TEST_3() {
 
 void TEST_4() {
     string progName = "MUSI6106ExecTEST_4";
-    string in = "silence.wav";
+    string in = "tests/silence.wav";
     string out = progName + ".wav";
     string ft[2] = {"FIR", "IIR"};
 
@@ -414,7 +414,7 @@ void TEST_4() {
 
 void TEST_5() {
     std::string progName = "MUSI6106ExecTEST_5";
-    std::string in = "noise.wav";
+    std::string in = "tests/noise.wav";
     std::string out = progName + ".wav";
     std::string ft[2] = {"FIR", "IIR"};
 
