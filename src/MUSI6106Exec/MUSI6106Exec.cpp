@@ -7,6 +7,7 @@
 
 #include "AudioFileIf.h"
 #include "CombFilterIf.h"
+#include "RingBuffer.h"
 
 using std::cout;
 using std::endl;

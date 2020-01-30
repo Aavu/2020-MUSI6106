@@ -100,7 +100,7 @@ public:
     T get (float fOffset = 0.f) const
     {
         T val = interpolate(fOffset);
-        return val
+        return val;
     }
 
     /*! return the values starting at the current read index
@@ -159,7 +159,7 @@ public:
         m_readIndex = getAdjustedIndex(iNewReadIdx);
     }
 
-    size_t getAdjustedIndex (size_t idx) {
+    int getAdjustedIndex (int idx) {
         return idx < 0 ? (std::abs(m_iBuffLength - idx) % m_iBuffLength) : (idx % m_iBuffLength);
     }
 
@@ -199,10 +199,10 @@ public:
 private:
     CRingBuffer(const CRingBuffer& that);
 
-    size_t m_iBuffLength;              //!< length of the internal buffer
+    int m_iBuffLength;              //!< length of the internal buffer
     std::unique_ptr<T> m_buffer;
-    size_t m_writeIndex;
-    size_t m_readIndex;
+    int m_writeIndex;
+    int m_readIndex;
 
     void zeroBuffer() const {
         for (int i=0; i < m_iBuffLength; i++)
