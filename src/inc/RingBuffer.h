@@ -11,16 +11,20 @@ template <class T>
 class CRingBuffer
 {
 public:
-    explicit CRingBuffer (int iBufferLengthInSamples) :
-        m_iBuffLength(iBufferLengthInSamples)
+    explicit CRingBuffer (int iBufferLengthInSamples) : m_iBuffLength(iBufferLengthInSamples),
+                                                        m_writeIndex(0),
+                                                        m_readIndex(0)
     {
         assert(iBufferLengthInSamples > 0);
-
+        m_buffer = new T[m_iBuffLength];
+        reset();
         // allocate and init
     }
 
     virtual ~CRingBuffer ()
     {
+        reset();
+        //No need to delete m_buffer as it uses smart pointers
         // free memory
     }
 
@@ -30,6 +34,8 @@ public:
     */
     void putPostInc (T tNewValue)
     {
+        put(tNewValue);
+        updateWriteIdx();
     }
 
     /*! add new values of type T to write index and increment write index
@@ -39,6 +45,9 @@ public:
     */
     void putPostInc (const T* ptNewBuff, int iLength)
     {
+        assert(iLength > 0 && iLength < m_iBuffLength);
+        for (int i=0; i < iLength; i++)
+            putPostInc(ptNewBuff[i]);
     }
 
     /*! add a new value of type T to write index
@@ -47,6 +56,7 @@ public:
     */
     void put(T tNewValue)
     {
+        m_buffer[getWriteIdx()] = tNewValue;
     }
 
     /*! add new values of type T to write index
@@ -56,6 +66,9 @@ public:
     */
     void put(const T* ptNewBuff, int iLength)
     {
+        assert(iLength > 0 && iLength < m_iBuffLength);
+        for (int i=0; i < iLength; i++)
+            put(ptNewBuff[i]);
     }
     
     /*! return the value at the current read index and increment the read pointer
@@ -63,7 +76,9 @@ public:
     */
     T getPostInc ()
     {
-        return static_cast<T>(-1);
+        T val = m_buffer[m_readIndex];
+        updateReadIndex();
+        return val;
     }
 
     /*! return the values starting at the current read index and increment the read pointer
@@ -73,6 +88,9 @@ public:
     */
     void getPostInc (T* ptBuff, int iLength)
     {
+        assert(iLength > 0 && iLength < m_iBuffLength);
+        for (int i=0; i<iLength; i++)
+            ptBuff[i] = getPostInc();
     }
 
     /*! return the value at the current read index
@@ -81,7 +99,8 @@ public:
     */
     T get (float fOffset = 0.f) const
     {
-        return static_cast<T>(-1);
+        T val = interpolate(fOffset);
+        return val
     }
 
     /*! return the values starting at the current read index
@@ -91,6 +110,9 @@ public:
     */
     void get (T* ptBuff, int iLength) const
     {
+        assert(iLength > 0 && iLength < m_iBuffLength);
+        for (int i=0; i <iLength; i++)
+            ptBuff[i] = get();
     }
     
     /*! set buffer content and indices to 0
@@ -98,6 +120,9 @@ public:
     */
     void reset ()
     {
+        m_readIndex = 0;
+        m_writeIndex = 0;
+        zeroBuffer();
     }
 
     /*! return the current index for writing/put
@@ -105,7 +130,7 @@ public:
     */
     int getWriteIdx () const
     {
-        return -1;
+        return m_writeIndex;
     }
 
     /*! move the write index to a new position
@@ -114,6 +139,7 @@ public:
     */
     void setWriteIdx (int iNewWriteIdx)
     {
+        m_writeIndex = getAdjustedIndex(iNewWriteIdx);
     }
 
     /*! return the current index for reading/get
@@ -121,7 +147,7 @@ public:
     */
     int getReadIdx () const
     {
-        return -1;
+        return m_readIndex;
     }
 
     /*! move the read index to a new position
@@ -130,6 +156,11 @@ public:
     */
     void setReadIdx (int iNewReadIdx)
     {
+        m_readIndex = getAdjustedIndex(iNewReadIdx);
+    }
+
+    size_t getAdjustedIndex (size_t idx) {
+        return idx < 0 ? (std::abs(m_iBuffLength - idx) % m_iBuffLength) : (idx % m_iBuffLength);
     }
 
     /*! returns the number of values currently buffered (note: 0 could also mean the buffer is full!)
@@ -137,7 +168,9 @@ public:
     */
     int getNumValuesInBuffer () const
     {
-        return -1;
+        if (m_writeIndex < m_readIndex)
+            return m_iBuffLength - (m_readIndex - m_writeIndex);
+        return m_writeIndex - m_readIndex;
     }
 
     /*! returns the length of the internal buffer
@@ -145,12 +178,35 @@ public:
     */
     int getLength () const
     {
-        return -1;
+        return m_iBuffLength;
     }
+
+    void updateWriteIdx () {
+        m_writeIndex = getAdjustedIndex(++m_writeIndex);
+    }
+
+    void updateReadIndex () {
+        m_readIndex = getAdjustedIndex(++m_readIndex);;
+    }
+
+    T interpolate(float offset) {
+        assert(offset < m_iBuffLength);
+        return (m_buffer[m_readIndex] * (1 - offset)) + (m_buffer[getAdjustedIndex(++m_readIndex)] * offset);
+    }
+
+    CRingBuffer () = delete;
+
 private:
-    CRingBuffer ();
     CRingBuffer(const CRingBuffer& that);
 
-    int m_iBuffLength;              //!< length of the internal buffer
+    size_t m_iBuffLength;              //!< length of the internal buffer
+    std::unique_ptr<T> m_buffer;
+    size_t m_writeIndex;
+    size_t m_readIndex;
+
+    void zeroBuffer() const {
+        for (int i=0; i < m_iBuffLength; i++)
+            m_buffer[i] = 0;
+    }
 };
 #endif // __RingBuffer_hdr__
