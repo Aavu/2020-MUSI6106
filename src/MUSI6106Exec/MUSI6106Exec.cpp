@@ -265,7 +265,6 @@ void TEST_2() {
             amp[c][frameCount] = 0;
             for (int i = 1; i < iNumFrames; i++) {
                 amp[c][frameCount] += (std::abs(ppfAudioData[c][i]) / iNumFrames);
-//                amp += (std::abs(ppfAudioData[c][i]) - std::abs(ppfAudioData[c][i - 1]));
             }
         }
         frameCount++;
