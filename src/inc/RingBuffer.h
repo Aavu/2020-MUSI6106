@@ -117,8 +117,7 @@ public:
             while (iRead < 0)
                 iRead  += m_iBuffLength;
 
-            return (1-fFrac) * m_ptBuff[iRead] +
-                       fFrac * m_ptBuff[(iRead+1) % m_iBuffLength];
+            return (1 - fFrac) * m_ptBuff[iRead] + fFrac * m_ptBuff[(iRead+1) % m_iBuffLength];
         }
     }
 

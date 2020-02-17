@@ -73,6 +73,7 @@ SUITE(CombFilter)
                 iNumFramesRemaining -= iNumFrames;
             }
         }
+
         void TestProcessInplace() 
         {
             int iNumFramesRemaining = m_iDataLength;

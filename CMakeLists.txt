@@ -2,6 +2,7 @@ cmake_minimum_required (VERSION 3.0)
 project (MUSI6106
         VERSION 0.0.0.1)
 
+set(CMAKE_CXX_STANDARD 11)
 #######################################################################################################
 ## includes
 # where to look for the default stuff...
