@@ -33,7 +33,7 @@ int main(int argc, char* argv[])
 
     CAudioFileIf::FileSpec_t stFileSpec;
 
-    CVibrato *pVibrato = nullptr;
+    CVibrato *pCVibrato = nullptr;
 
     showClInfo();
 
@@ -75,10 +75,15 @@ int main(int argc, char* argv[])
         ppfOutputAudioData[i] = new float[kBlockSize];
     }
 
-    CVibrato::create(pVibrato);
+    CVibrato::create(pCVibrato);
 
-    auto err = pVibrato->init(stFileSpec.fSampleRateInHz, stFileSpec.iNumChannels, 2.0, 0.05);
+    auto err = pCVibrato->init(stFileSpec.fSampleRateInHz, stFileSpec.iNumChannels, 10);
 
+    pCVibrato->setParam(CVibrato::kParamDelay, .5);
+    pCVibrato->setParam(CVibrato::kParamModFreq, 10.0);
+    pCVibrato->setParam(CVibrato::kParamWidth, 0);
+
+    std::cout << pCVibrato->getLength() << std::endl;
     if (err != kNoError)
         return -1;
 
@@ -90,7 +95,7 @@ int main(int argc, char* argv[])
         long long iNumFrames = kBlockSize;
         phInputAudioFile->readData(ppfInputAudioData, iNumFrames);
 
-        auto err = pVibrato->process(ppfInputAudioData, ppfOutputAudioData, iNumFrames);
+        auto err = pCVibrato->process(ppfInputAudioData, ppfOutputAudioData, iNumFrames);
         if (err != kNoError)
             return -1;
         phOutputAudioFile->writeData(ppfOutputAudioData, iNumFrames);
@@ -103,7 +108,7 @@ int main(int argc, char* argv[])
     CAudioFileIf::destroy(phInputAudioFile);
     CAudioFileIf::destroy(phOutputAudioFile);
 
-    CVibrato::destroy(pVibrato);
+    CVibrato::destroy(pCVibrato);
 
     for (int i = 0; i < stFileSpec.iNumChannels; i++) {
         delete[] ppfInputAudioData[i];

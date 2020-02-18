@@ -22,8 +22,10 @@ SUITE(Vibrato)
                         m_iBlockLength(171),
                         m_iNumChannels(3),
                         m_fSampleRate(8000),
-                        m_fWidth(.05f),
-                        m_fModFreq(2.f)
+                        m_fMaxDelayInSec(11),
+                        m_fWidth(.005),
+                        m_fDelay(0.5),
+                        m_fModFreq(10.)
         {
             CVibrato::create(m_pCVibrato);
             m_ppfInputData  = new float*[m_iNumChannels];
@@ -97,14 +99,23 @@ SUITE(Vibrato)
         int     m_iDataLength;
         int     m_iBlockLength;
         int     m_iNumChannels;
-        float   m_fSampleRate;
+        float   m_fSampleRate,
+                m_fMaxDelayInSec;
         float   m_fWidth,
+                m_fDelay,
                 m_fModFreq;
     };
 
     TEST_FIXTURE(VibratoData, ZeroInput)
     {
-        m_pCVibrato->init(m_fSampleRate, m_iNumChannels, m_fModFreq, m_fWidth);
+        m_pCVibrato->init(m_fSampleRate, m_iNumChannels, m_fMaxDelayInSec);
+        m_pCVibrato->setParam(CVibrato::kParamModFreq, m_fModFreq);
+        m_pCVibrato->setParam(CVibrato::kParamWidth, m_fWidth);
+        m_pCVibrato->setParam(CVibrato::kParamDelay, m_fDelay);
+
+        for (int c=0; c < m_iNumChannels; c++)
+            CVectorFloat::setZero(m_ppfInputData[c], m_iDataLength);
+
         TestProcess();
 
         for (int c=0; c < m_iNumChannels; c++)
@@ -115,7 +126,10 @@ SUITE(Vibrato)
 
     TEST_FIXTURE(VibratoData, DCInput)
     {
-        m_pCVibrato->init(m_fSampleRate, m_iNumChannels, m_fModFreq, m_fWidth);
+        m_pCVibrato->init(m_fSampleRate, m_iNumChannels, m_fMaxDelayInSec);
+        m_pCVibrato->setParam(CVibrato::kParamModFreq, m_fModFreq);
+        m_pCVibrato->setParam(CVibrato::kParamWidth, m_fWidth);
+        m_pCVibrato->setParam(CVibrato::kParamDelay, m_fDelay);
 
         for (int i = 0; i < m_iNumChannels; i++)
             CVectorFloat::setValue(m_ppfInputData[i], 0.5, m_iDataLength);
@@ -130,6 +144,88 @@ SUITE(Vibrato)
         m_pCVibrato->reset();
     }
 
+    TEST_FIXTURE(VibratoData, ModAmpZero) // fails for now. Need to check what's happening
+    {
+        m_pCVibrato->init(m_fSampleRate, m_iNumChannels, m_fMaxDelayInSec);
+        m_pCVibrato->setParam(CVibrato::kParamModFreq, m_fModFreq);
+        m_pCVibrato->setParam(CVibrato::kParamWidth, 0);
+        m_pCVibrato->setParam(CVibrato::kParamDelay, 0.5);
+
+        for (int c = 0; c < m_iNumChannels; c++)
+            CSynthesis::generateSine (m_ppfInputData[c], 221.0, m_fSampleRate, m_iDataLength, 1);
+
+        TestProcess();
+
+        auto length = m_pCVibrato->getLength();
+
+        for (int c=0; c < m_iNumChannels; c++)
+            CHECK_ARRAY_CLOSE(m_ppfInputData[c], m_ppfOutputData[c] + length, m_iDataLength, 1e-3);
+
+        m_pCVibrato->reset();
+    }
+
+    TEST_FIXTURE(VibratoData, VaryingBlockSize) // fails for now. Need to check what's happening
+    {
+        m_pCVibrato->init(m_fSampleRate, m_iNumChannels, m_fMaxDelayInSec);
+        m_pCVibrato->setParam(CVibrato::kParamModFreq, m_fModFreq);
+        m_pCVibrato->setParam(CVibrato::kParamWidth, m_fWidth);
+        m_pCVibrato->setParam(CVibrato::kParamDelay, m_fDelay);
+
+        for (int c = 0; c < m_iNumChannels; c++)
+            CSynthesis::generateSine (m_ppfInputData[c], 221.0, m_fSampleRate, m_iDataLength, 1);
+
+        TestProcess();
+
+        auto** tmp = new float*[m_iNumChannels];
+        for (int c=0; c < m_iNumChannels; c++) {
+            tmp[c] = new float[m_iDataLength];
+            for (int i=0; i<m_iDataLength; i++)
+                tmp[c][i] = m_ppfOutputData[c][i];
+        }
+
+        m_iBlockLength = 513;
+        TestProcess();
+
+        for (int c=0; c < m_iNumChannels; c++)
+            CHECK_ARRAY_CLOSE(tmp[c], m_ppfOutputData[c], m_iDataLength, 1e-3);
+
+        for (int c=0; c < m_iNumChannels; c++)
+            delete[]  tmp[c];
+
+        delete[] tmp;
+        m_pCVibrato->reset();
+    }
+
+    TEST_FIXTURE(VibratoData, InPlaceProcessing)
+    {
+        m_pCVibrato->init(m_fSampleRate, m_iNumChannels, m_fMaxDelayInSec);
+        m_pCVibrato->setParam(CVibrato::kParamModFreq, m_fModFreq);
+        m_pCVibrato->setParam(CVibrato::kParamWidth, m_fWidth);
+        m_pCVibrato->setParam(CVibrato::kParamDelay, m_fDelay);
+
+        for (int c = 0; c < m_iNumChannels; c++)
+            CSynthesis::generateSine (m_ppfInputData[c], 221.0, m_fSampleRate, m_iDataLength, 1);
+
+        TestProcess();
+
+        auto** tmp = new float*[m_iNumChannels];
+        for (int c = 0; c < m_iNumChannels; c++) {
+            tmp[c] = new float[m_iDataLength];
+            for (int i = 0; i < m_iDataLength; i++)
+                tmp[c][i] = m_ppfOutputData[c][i];
+        }
+
+        TestProcessInplace();
+
+        for (int c=0; c < m_iNumChannels; c++)
+                    CHECK_ARRAY_CLOSE(tmp[c], m_ppfOutputData[c], m_iDataLength, 1e-3);
+
+        for (int c=0; c < m_iNumChannels; c++)
+            delete[]  tmp[c];
+
+        delete[] tmp;
+        m_pCVibrato->reset();
+    }
 }
 
 #endif //WITH_TESTS

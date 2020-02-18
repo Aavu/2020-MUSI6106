@@ -27,49 +27,49 @@ void CVibrato::destroy(CVibrato* vibrato) {
 }
 
 void CVibrato::reset() {
-    m_sampleRate = 0;
-    m_modFreq = 0;
-    m_width = 0;
-    m_delay = 0;
-    m_length = 0;
-    for (int c=0; c < m_channels; c++)
+    m_fSampleRate = 0;
+    m_fModFreqInSamples = 0;
+    m_iWidth = 0;
+    m_iDelay = 0;
+    m_iLength = 0;
+    for (int c=0; c < m_iNumChannels; c++)
         m_delayLine[c]->reset();
-    m_channels = 0;
-    delete m_sineLUT;
-    b_initialized = false;
+    m_iNumChannels = 0;
+    m_bInitialized = false;
 }
 
-Error_t CVibrato::init(float sampleRate, int iNumChannels, float modFreq, float width) {
-    if (sampleRate <= 0 || modFreq < 0 || width < 0)
+Error_t CVibrato::init(float fSampleRate, int iNumChannels, float fMaxDelayLengthInS) {
+    if (fSampleRate <= 0 || iNumChannels <=0 ||fMaxDelayLengthInS < 0)
         return kFunctionInvalidArgsError;
-    m_sampleRate = sampleRate;
-    m_modFreq = modFreq / m_sampleRate;
-    m_width = (int) std::roundf(width * m_sampleRate);
-    m_delay = m_width;
-    m_length = 2 + m_delay + m_width*2;
-    m_channels = iNumChannels;
 
-    m_sineLUT = new CLfo<float>(m_sampleRate, modFreq, (int)(1/m_modFreq));
+    reset();
 
-    m_delayLine = new CRingBuffer<float>*[m_channels];
-    for (int c = 0; c < m_channels; c++)
-        m_delayLine[c] = new CRingBuffer<float>(m_length);
+    m_fSampleRate = fSampleRate;
+    m_iNumChannels = iNumChannels;
+    m_iMaxDelayLength = (int) (fMaxDelayLengthInS * m_fSampleRate);
 
-    b_initialized = true;
+    initLFO();
+    initBuffer();
+
+    m_bInitialized = true;
     return kNoError;
 }
 
 Error_t CVibrato::setParam(CVibrato::FilterParam_t eParam, float fParamValue) {
-    if (!b_initialized)
+    if (!m_bInitialized)
         return kNotInitializedError;
 
-    if (eParam == kParamWidth)
-        m_width = (int) (fParamValue * m_sampleRate);
-    else if (eParam == kParamModFreq)
-        m_modFreq = fParamValue * m_sampleRate;
-    else
+    if (eParam == kParamWidth) {
+        m_iWidth = (int) std::roundf(fParamValue * m_fSampleRate);
+    } else if (eParam == kParamModFreq) {
+        m_fModFreqInSamples = fParamValue / m_fSampleRate;
+        m_lfo->setFrequency(m_fModFreqInSamples);
+    } else if (eParam == kParamDelay) {
+        m_iDelay = std::min((int) std::roundf(fParamValue * m_fSampleRate), m_iMaxDelayLength);
+    } else
         return kFunctionInvalidArgsError;
 
+    calcLength();
     return kNoError;
 }
 
@@ -80,14 +80,34 @@ float CVibrato::getParam(CVibrato::FilterParam_t eParam) const {
 
 Error_t CVibrato::process(float **ppfInputBuffer, float **ppfOutputBuffer, int iNumberOfFrames) {
     for (int i=0; i<iNumberOfFrames; i++) {
-        auto mod = m_sineLUT->getPostInc();
-        auto tap = 1.f + (float)m_delay + ((float)m_width * mod);
-        for (int c = 0; c < m_channels; c++) {
+        auto mod = m_lfo->getPostInc();
+        auto tap = 1 + (float)m_iDelay + ((float)m_iWidth * mod);
+        for (int c = 0; c < m_iNumChannels; c++) {
             m_delayLine[c]->putPostInc(ppfInputBuffer[c][i]);
             ppfOutputBuffer[c][i] = m_delayLine[c]->get(tap);
             m_delayLine[c]->getPostInc();
         }
     }
-
     return kNoError;
+}
+
+void CVibrato::initLFO() {
+    m_lfo = new CLfo<float>(m_fSampleRate, m_fModFreqInSamples, m_iMaxDelayLength);
+    m_lfo->setFrequency(m_fModFreqInSamples);
+}
+
+void CVibrato::calcLength() {
+    m_iLength = 1 + m_iDelay + m_iWidth*2;
+    for (int c = 0; c < m_iNumChannels; c++)
+        m_delayLine[c]->setLength(m_iLength);
+}
+
+int CVibrato::getLength() {
+    return m_iLength;
+}
+
+void CVibrato::initBuffer() {
+    m_delayLine = new CRingBuffer<float>*[m_iNumChannels];
+    for (int c = 0; c < m_iNumChannels; c++)
+        m_delayLine[c] = new CRingBuffer<float>(m_iMaxDelayLength);
 }
