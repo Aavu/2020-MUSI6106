@@ -77,13 +77,12 @@ int main(int argc, char* argv[])
 
     CVibrato::create(pCVibrato);
 
-    auto err = pCVibrato->init(stFileSpec.fSampleRateInHz, stFileSpec.iNumChannels, 10);
+    auto err = pCVibrato->init(stFileSpec.fSampleRateInHz, stFileSpec.iNumChannels, 0.1);
 
-    pCVibrato->setParam(CVibrato::kParamDelay, .5);
-    pCVibrato->setParam(CVibrato::kParamModFreq, 10.0);
-    pCVibrato->setParam(CVibrato::kParamWidth, 0);
+    pCVibrato->setParam(CVibrato::kParamDelay, .02);
+    pCVibrato->setParam(CVibrato::kParamModFreq, 5.0);
+    pCVibrato->setParam(CVibrato::kParamWidth, .05);
 
-    std::cout << pCVibrato->getLength() << std::endl;
     if (err != kNoError)
         return -1;
 
@@ -95,7 +94,7 @@ int main(int argc, char* argv[])
         long long iNumFrames = kBlockSize;
         phInputAudioFile->readData(ppfInputAudioData, iNumFrames);
 
-        auto err = pCVibrato->process(ppfInputAudioData, ppfOutputAudioData, iNumFrames);
+        err = pCVibrato->process(ppfInputAudioData, ppfOutputAudioData, iNumFrames);
         if (err != kNoError)
             return -1;
         phOutputAudioFile->writeData(ppfOutputAudioData, iNumFrames);

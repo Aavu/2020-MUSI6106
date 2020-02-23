@@ -23,7 +23,6 @@ void CVibrato::create(CVibrato*& pCVibrato) {
 
 void CVibrato::destroy(CVibrato* vibrato) {
     delete vibrato;
-    vibrato = nullptr;
 }
 
 void CVibrato::reset() {
@@ -50,7 +49,7 @@ Error_t CVibrato::init(float fSampleRate, int iNumChannels, float fMaxDelayLengt
 
     initLFO();
     initBuffer();
-
+    calcLength();
     m_bInitialized = true;
     return kNoError;
 }
@@ -69,7 +68,7 @@ Error_t CVibrato::setParam(CVibrato::FilterParam_t eParam, float fParamValue) {
     } else
         return kFunctionInvalidArgsError;
 
-    calcLength();
+//    calcLength();
     return kNoError;
 }
 
@@ -80,8 +79,9 @@ float CVibrato::getParam(CVibrato::FilterParam_t eParam) const {
 
 Error_t CVibrato::process(float **ppfInputBuffer, float **ppfOutputBuffer, int iNumberOfFrames) {
     for (int i=0; i<iNumberOfFrames; i++) {
-        auto mod = m_lfo->getPostInc();
-        auto tap = 1 + (float)m_iDelay + ((float)m_iWidth * mod);
+        auto mod = (1 + m_lfo->getPostInc())*0.5;
+//        auto tap = 1 + (float)m_iDelay + ((float)m_iWidth * mod);
+        float tap = m_iWidth * mod;
         for (int c = 0; c < m_iNumChannels; c++) {
             m_delayLine[c]->putPostInc(ppfInputBuffer[c][i]);
             ppfOutputBuffer[c][i] = m_delayLine[c]->get(tap);
@@ -92,14 +92,15 @@ Error_t CVibrato::process(float **ppfInputBuffer, float **ppfOutputBuffer, int i
 }
 
 void CVibrato::initLFO() {
-    m_lfo = new CLfo<float>(m_fSampleRate, m_fModFreqInSamples, m_iMaxDelayLength);
+    m_lfo = new CLfo<float>(128);
     m_lfo->setFrequency(m_fModFreqInSamples);
 }
 
 void CVibrato::calcLength() {
-    m_iLength = 1 + m_iDelay + m_iWidth*2;
+//    m_iLength = m_iMaxDelayLength; //m_iDelay + m_iWidth;
+    std::cout << m_iMaxDelayLength << std::endl;
     for (int c = 0; c < m_iNumChannels; c++)
-        m_delayLine[c]->setLength(m_iLength);
+        m_delayLine[c]->setLength(m_iMaxDelayLength);
 }
 
 int CVibrato::getLength() {
