@@ -1,12 +1,13 @@
 #include "MUSI6106Config.h"
 
-#ifdef COMPILEME //WITH_TESTS
+#ifdef WITH_TESTS //WITH_TESTS
 #include <cassert>
 #include <cstdio>
 #include <algorithm>
 
 #include "UnitTest++.h"
 
+#include "AudioFileIf.h"
 #include "Vibrato.h"
 #include "Synthesis.h"
 #include "Vector.h"
@@ -20,12 +21,12 @@ SUITE(Vibrato)
                         m_ppfOutputData(nullptr),
                         m_iDataLength(35131),
                         m_iBlockLength(171),
-                        m_iNumChannels(3),
+                        m_iNumChannels(1),
                         m_fSampleRate(8000),
-                        m_fMaxDelayInSec(11),
+                        m_fMaxDelayInSec(0.1),
                         m_fWidth(.005),
-                        m_fDelay(0.5),
-                        m_fModFreq(10.)
+                        m_fDelay(0.055),
+                        m_fModFreq(11.)
         {
             CVibrato::create(m_pCVibrato);
             m_ppfInputData  = new float*[m_iNumChannels];
@@ -39,6 +40,13 @@ SUITE(Vibrato)
                 m_ppfOutputData[i]  = new float [m_iDataLength];
                 CVectorFloat::setZero(m_ppfOutputData[i], m_iDataLength);
             }
+
+//            stFileSpec.iNumChannels = m_iNumChannels;
+//            stFileSpec.fSampleRateInHz = m_fSampleRate;
+//            stFileSpec.eBitStreamType = CAudioFileIf::kFileBitStreamFloat32;
+//            stFileSpec.eFormat = CAudioFileIf::kFileFormatWav;
+//            CAudioFileIf::create(phOutputAudioFile);
+//            phOutputAudioFile->openFile("test.wav", CAudioFileIf::kFileWrite, &stFileSpec);
         }
 
         ~VibratoData()
@@ -54,6 +62,7 @@ SUITE(Vibrato)
             delete [] m_ppfInputData;
 
             CVibrato::destroy(m_pCVibrato);
+//            CAudioFileIf::destroy(phOutputAudioFile);
         }
 
         void TestProcess()
@@ -104,6 +113,9 @@ SUITE(Vibrato)
         float   m_fWidth,
                 m_fDelay,
                 m_fModFreq;
+
+//        CAudioFileIf            *phOutputAudioFile = 0;
+//        CAudioFileIf::FileSpec_t stFileSpec;
     };
 
     TEST_FIXTURE(VibratoData, ZeroInput)
@@ -136,8 +148,7 @@ SUITE(Vibrato)
 
         TestProcess();
 
-        auto width = (int) std::roundf(m_fWidth * m_fSampleRate);
-        auto length = (int)(2 + width + width*2);
+        auto length = (int)(std::ceilf(m_fMaxDelayInSec*m_fSampleRate));
         for (int c=0; c < m_iNumChannels; c++)
             CHECK_ARRAY_CLOSE(m_ppfInputData[c] + length, m_ppfOutputData[c] + length, m_iDataLength - length, 1e-3);
 
@@ -156,15 +167,15 @@ SUITE(Vibrato)
 
         TestProcess();
 
-        auto length = m_pCVibrato->getLength();
+        auto length = (int)(m_fMaxDelayInSec*m_fSampleRate);
 
         for (int c=0; c < m_iNumChannels; c++)
-            CHECK_ARRAY_CLOSE(m_ppfInputData[c], m_ppfOutputData[c] + length, m_iDataLength, 1e-3);
+            CHECK_ARRAY_CLOSE(m_ppfInputData[c] + length, m_ppfOutputData[c] + length, m_iDataLength - length, 1e-3);
 
         m_pCVibrato->reset();
     }
 
-    TEST_FIXTURE(VibratoData, VaryingBlockSize) // fails for now. Need to check what's happening
+    TEST_FIXTURE(VibratoData, VaryingBlockSize)
     {
         m_pCVibrato->init(m_fSampleRate, m_iNumChannels, m_fMaxDelayInSec);
         m_pCVibrato->setParam(CVibrato::kParamModFreq, m_fModFreq);
@@ -172,25 +183,25 @@ SUITE(Vibrato)
         m_pCVibrato->setParam(CVibrato::kParamDelay, m_fDelay);
 
         for (int c = 0; c < m_iNumChannels; c++)
-            CSynthesis::generateSine (m_ppfInputData[c], 221.0, m_fSampleRate, m_iDataLength, 1);
+            CSynthesis::generateSine (m_ppfInputData[c], 440.0, m_fSampleRate, m_iDataLength, 1);
 
         TestProcess();
 
+//        phOutputAudioFile->writeData(m_ppfInputData, m_iDataLength);
         auto** tmp = new float*[m_iNumChannels];
-        for (int c=0; c < m_iNumChannels; c++) {
+        for (int c = 0; c < m_iNumChannels; c++) {
             tmp[c] = new float[m_iDataLength];
-            for (int i=0; i<m_iDataLength; i++)
+            for (int i = 0; i < m_iDataLength; i++)
                 tmp[c][i] = m_ppfOutputData[c][i];
         }
 
         m_iBlockLength = 513;
         TestProcess();
 
-        for (int c=0; c < m_iNumChannels; c++)
+        for (int c=0; c < m_iNumChannels; c++) {
             CHECK_ARRAY_CLOSE(tmp[c], m_ppfOutputData[c], m_iDataLength, 1e-3);
-
-        for (int c=0; c < m_iNumChannels; c++)
-            delete[]  tmp[c];
+            delete[] tmp[c];
+        }
 
         delete[] tmp;
         m_pCVibrato->reset();
@@ -204,7 +215,7 @@ SUITE(Vibrato)
         m_pCVibrato->setParam(CVibrato::kParamDelay, m_fDelay);
 
         for (int c = 0; c < m_iNumChannels; c++)
-            CSynthesis::generateSine (m_ppfInputData[c], 221.0, m_fSampleRate, m_iDataLength, 1);
+            CSynthesis::generateSine (m_ppfInputData[c], 220.0, m_fSampleRate, m_iDataLength, 1);
 
         TestProcess();
 
@@ -217,11 +228,10 @@ SUITE(Vibrato)
 
         TestProcessInplace();
 
-        for (int c=0; c < m_iNumChannels; c++)
-                    CHECK_ARRAY_CLOSE(tmp[c], m_ppfOutputData[c], m_iDataLength, 1e-3);
-
-        for (int c=0; c < m_iNumChannels; c++)
+        for (int c=0; c < m_iNumChannels; c++) {
+            CHECK_ARRAY_CLOSE(tmp[c], m_ppfOutputData[c], m_iDataLength, 1e-3);
             delete[]  tmp[c];
+        }
 
         delete[] tmp;
         m_pCVibrato->reset();
