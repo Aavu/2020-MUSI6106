@@ -45,7 +45,7 @@ Error_t CVibrato::init(float fSampleRate, int iNumChannels, float fMaxDelayLengt
 
     m_fSampleRate = fSampleRate;
     m_iNumChannels = iNumChannels;
-    m_iMaxDelayLength = CUtil::float2int<int>(fMaxDelayLengthInS * m_fSampleRate);
+    m_iMaxDelayLength = (int) (fMaxDelayLengthInS * m_fSampleRate);
 
     initLFO();
     initBuffer();
@@ -59,14 +59,12 @@ Error_t CVibrato::setParam(CVibrato::FilterParam_t eParam, float fParamValue) {
         return kNotInitializedError;
 
     if (eParam == kParamWidth) {
-        m_iWidth = CUtil::float2int<int>(fParamValue * m_fSampleRate);
-//        for (int c = 0; c < m_iNumChannels; c++)
-//            m_delayLine[c]->setReadIdx(std::ceil(fParamValue * m_fSampleRate / 2.0)); //TODO: check
+        m_iWidth = (int) std::roundf(fParamValue * m_fSampleRate);
     } else if (eParam == kParamModFreq) {
         m_fModFreqInSamples = fParamValue / m_fSampleRate;
         m_lfo->setFrequency(m_fModFreqInSamples);
     } else if (eParam == kParamDelay) {
-        m_iDelay = std::min(CUtil::float2int<int>(fParamValue * m_fSampleRate), m_iMaxDelayLength);
+        m_iDelay = std::min((int) std::roundf(fParamValue * m_fSampleRate), m_iMaxDelayLength);
     } else
         return kFunctionInvalidArgsError;
 
@@ -99,9 +97,10 @@ void CVibrato::initLFO() {
 }
 
 void CVibrato::setBufferLength() {
-    m_iLength = m_iDelay + CUtil::float2int<int>((float) m_iWidth/2.0f) + 1;
+//    m_iLength = m_iMaxDelayLength; //m_iDelay + m_iWidth;
+//    std::cout << m_iMaxDelayLength << std::endl;
     for (int c = 0; c < m_iNumChannels; c++)
-        m_delayLine[c]->setLength(m_iLength);
+        m_delayLine[c]->setLength(m_iMaxDelayLength);
 }
 
 int CVibrato::getLength() {
