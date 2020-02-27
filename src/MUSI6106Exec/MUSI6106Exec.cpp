@@ -1,7 +1,7 @@
 
 #include <iostream>
 #include <ctime>
-
+#include <unistd.h>
 #include "MUSI6106Config.h"
 
 #include "AudioFileIf.h"
@@ -35,20 +35,44 @@ int main(int argc, char* argv[])
 
     CVibrato *pCVibrato = nullptr;
 
+    CVibratoParams cVibratoParams = {0, 0};
+
     showClInfo();
 
     //////////////////////////////////////////////////////////////////////////////
     // parse command line arguments
-    if (argc < 2)
+
+    int options;
+    while ((options = getopt(argc, argv, "i:o:w:f:")) != -1) {
+        switch (options) {
+            case 'i':
+                sInputFilePath = optarg;
+                break;
+            case 'o':
+                sOutputFilePath = optarg;
+                break;
+            case 'w':
+                cVibratoParams.width = atof(optarg);
+                break;
+            case 'f':
+                cVibratoParams.modFreq = atof(optarg);
+                break;
+        }
+    }
+
+    if (sInputFilePath.empty())
     {
         cout << "Missing audio input path!";
         return -1;
     }
-    else
-    {
-        sInputFilePath = argv[1];
-        sOutputFilePath = sInputFilePath + "_out.wav";
+
+    if (sOutputFilePath.empty()) {
+        sOutputFilePath = sInputFilePath + "\b\b\b\b_out.wav";
     }
+
+    cout << "inputpath " << sInputFilePath << endl;
+    cout << "outputpath " << sOutputFilePath << endl << endl;
+    cout << cVibratoParams << endl;
 
     //////////////////////////////////////////////////////////////////////////////
     // open the input wave file
@@ -80,8 +104,8 @@ int main(int argc, char* argv[])
     auto err = pCVibrato->init(stFileSpec.fSampleRateInHz, stFileSpec.iNumChannels, 0.1);
 
     pCVibrato->setParam(CVibrato::kParamDelay, .02);
-    pCVibrato->setParam(CVibrato::kParamModFreq, 5.0);
-    pCVibrato->setParam(CVibrato::kParamWidth, .05);
+    pCVibrato->setParam(CVibrato::kParamModFreq, cVibratoParams.modFreq);
+    pCVibrato->setParam(CVibrato::kParamWidth, cVibratoParams.width);
 
     if (err != kNoError)
         return -1;
@@ -130,4 +154,3 @@ void     showClInfo()
 
     return;
 }
-
